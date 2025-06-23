@@ -23,5 +23,3 @@ A professional, multi-page React app for your Spring Boot Journal backend.
 - Update the API base URL in `src/api/axios.js` to match your Spring Boot backend.
 
 ---
-
-**Impress recruiters with a modern, full-stack project!** 

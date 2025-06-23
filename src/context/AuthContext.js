@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { 
   isTokenExpired, 
@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
   };
 
   // Function to validate token and handle expiration
-  const validateToken = async () => {
+  const validateToken = useCallback(async () => {
     if (!token) {
       setIsLoading(false);
       return false;
@@ -49,36 +49,32 @@ export function AuthProvider({ children }) {
       return true;
     } catch (error) {
       console.error('Token validation failed:', error);
-      
       // If token is invalid or expired, clear auth data
       if (error.response?.status === 401 || error.response?.status === 403) {
         clearAuthData();
         setIsLoading(false);
         return false;
       }
-      
       setIsLoading(false);
       return true; // For other errors, assume token is still valid
     }
-  };
+  }, [token]);
 
   // Check for token expiration warnings
-  const checkTokenExpirationWarning = () => {
+  const checkTokenExpirationWarning = useCallback(() => {
     if (!token) return;
-
     if (isTokenExpiringSoon(token)) {
       const timeUntilExpiration = getTimeUntilExpiration(token);
       const minutesLeft = Math.ceil(timeUntilExpiration / (1000 * 60));
-      
       // Dispatch warning event
       window.dispatchEvent(new CustomEvent('tokenExpiringSoon', {
-        detail: { 
+        detail: {
           message: `Your session will expire in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}. Please save your work.`,
-          timeLeft: timeUntilExpiration 
+          timeLeft: timeUntilExpiration
         }
       }));
     }
-  };
+  }, [token]);
 
   // Validate token on app startup and when token changes
   useEffect(() => {
@@ -87,27 +83,22 @@ export function AuthProvider({ children }) {
     } else {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, validateToken]);
 
   // Set up periodic token validation and expiration checks
   useEffect(() => {
     if (!token) return;
-
-    // Check token every minute
     const validationInterval = setInterval(() => {
       validateToken();
     }, 60 * 1000); // 1 minute
-
-    // Check for expiration warnings every 30 seconds
     const warningInterval = setInterval(() => {
       checkTokenExpirationWarning();
     }, 30 * 1000); // 30 seconds
-
     return () => {
       clearInterval(validationInterval);
       clearInterval(warningInterval);
     };
-  }, [token]);
+  }, [token, validateToken, checkTokenExpirationWarning]);
 
   useEffect(() => {
     if (user && token && role) {
